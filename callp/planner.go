@@ -14,6 +14,8 @@ type pricinigRequest struct {
 
 func findNextPricingRequest(next chan pricinigRequest) {
 	for {
+		jobID := nextJobID()
+
 		next <- pricinigRequest{lang: "EN", params: "test_params", md5: time.Now().Format("UnixDate"), trigger: "R_25"}
 		time.Sleep(time.Second * 2)
 	}
