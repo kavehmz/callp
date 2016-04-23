@@ -15,10 +15,12 @@ chomp $lang;
 my $params = <STDIN>;
 chomp $params;
 
+my $c=0;
 while (<STDIN>) {
     my $signal = $_;
     chomp $signal;
     print price($lang,$params,$signal),"\n";
+    break if ($c++=10);
 }
 
 srand;
