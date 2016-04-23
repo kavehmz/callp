@@ -20,7 +20,8 @@ while (<STDIN>) {
     my $signal = $_;
     chomp $signal;
     print price($lang,$params,$signal),"\n";
-    break if ($c++=10);
+    break if ($c=10);
+    $c++
 }
 
 srand;
