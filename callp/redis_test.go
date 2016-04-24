@@ -1,9 +1,24 @@
 package callp
 
 import (
+	"os"
 	"testing"
 	"time"
 )
+
+func TestNewPool(t *testing.T) {
+	os.Setenv("REDIS_URL", "")
+	p := newPool("")
+	_, err := p.Dial()
+	if err == nil {
+		t.Error("Connection didn't fail with wrong REDIS_URL")
+	}
+
+	p = newPool("redis://127.0.0.1:6379/0")
+	c := p.Get()
+	c.Close()
+	c = p.Get()
+}
 
 func TestSubscribe(t *testing.T) {
 	tick := make(chan string)

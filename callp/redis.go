@@ -3,7 +3,6 @@ package callp
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -11,18 +10,14 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-func newReadPool(redisURL string) *redis.Pool {
+func newPool(redisURL string) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     10,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.DialURL(redisURL)
 			if err != nil {
-				log.Fatalln(err)
-			}
-			_, err = c.Do("PING")
-			if err != nil {
-				log.Fatalln("rr", err)
+				return nil, err
 			}
 			return c, err
 		},
@@ -42,8 +37,8 @@ func init() {
 		redisRead = os.Getenv("REDIS_URL")
 		redisWrite = os.Getenv("REDIS_URL")
 	}
-	readPool = newReadPool(redisRead)
-	writePool = newReadPool(redisWrite)
+	readPool = newPool(redisRead)
+	writePool = newPool(redisWrite)
 }
 
 func subscribe(redisChannel string, tick chan string) redis.PubSubConn {
