@@ -92,6 +92,6 @@ func nextJob(nextJob chan int64) {
 	}
 }
 
-func publish(req PricinigRequest, msg string) {
+func publish(req PricinigRequest, msg Read) {
 	fmt.Println(req, msg)
 }

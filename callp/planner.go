@@ -22,7 +22,7 @@ func streamControl(req PricinigRequest, quit chan bool) {
 
 func streamPrice(worker chan bool, req PricinigRequest, quit chan bool) {
 	write := make(chan string, 1)
-	read := make(chan string, 1)
+	read := make(chan Read, 1)
 	err := make(chan error, 1)
 	pricerQuit := make(chan bool, 1)
 	go Pricer(PricingScript, write, read, pricerQuit, err)

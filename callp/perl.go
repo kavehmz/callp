@@ -3,15 +3,20 @@ package callp
 import (
 	"bufio"
 	"errors"
-	"log"
 	"os/exec"
 	"time"
 )
 
+// Read includes the main pricing message and other collected data
+type Read struct {
+	data     string
+	duration time.Duration
+}
+
 // Pricer is an interactive command-line executer. It expects the script to communicate over STDIN and STDOUT.
 // read,write and close channels are means of communicating with the script.
 // Pricer will exit if the script exits.
-func Pricer(cmdPath string, write, read chan string, close chan bool, err chan error) {
+func Pricer(cmdPath string, write chan string, read chan Read, quit chan bool, err chan error) {
 	cmd := exec.Command(cmdPath)
 	in, _ := cmd.StdinPipe()
 	out, _ := cmd.StdoutPipe()
@@ -29,9 +34,8 @@ func Pricer(cmdPath string, write, read chan string, close chan bool, err chan e
 	go func() {
 		for running {
 			data, _ := buf.ReadString('\n')
-			log.Println("Pricing time", data, time.Now().Sub(t).Nanoseconds())
 			readTimeout.Stop()
-			read <- data
+			read <- Read{data: data, duration: time.Now().Sub(t)}
 		}
 	}()
 
@@ -39,9 +43,8 @@ func Pricer(cmdPath string, write, read chan string, close chan bool, err chan e
 	go func() {
 		cmd.Wait()
 		if running {
-			err <- errors.New("App ended without signal from pricer")
+			appEnded <- true
 		}
-		appEnded <- true
 	}()
 
 loop:
@@ -52,10 +55,11 @@ loop:
 			t = time.Now()
 			in.Write([]byte(msg + "\n"))
 		case <-appEnded:
+			err <- errors.New("App ended without signal")
 			running = false
 			in.Close()
 			break loop
-		case <-close:
+		case <-quit:
 			running = false
 			in.Close()
 			break loop
