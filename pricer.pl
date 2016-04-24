@@ -21,7 +21,7 @@ while (<STDIN>) {
     chomp $signal;
     print price($lang,$params,$signal),"\n";
     break if ($c=10);
-    $c++
+    $c++;
 }
 
 srand;

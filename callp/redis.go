@@ -1,9 +1,11 @@
 package callp
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -16,7 +18,11 @@ func newReadPool(redisURL string) *redis.Pool {
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.DialURL(redisURL)
 			if err != nil {
-				return nil, err
+				log.Fatalln(err)
+			}
+			_, err = c.Do("PING")
+			if err != nil {
+				log.Fatalln("rr", err)
 			}
 			return c, err
 		},
@@ -30,8 +36,14 @@ func newReadPool(redisURL string) *redis.Pool {
 var readPool, writePool *redis.Pool
 
 func init() {
-	readPool = newReadPool(os.Getenv("REDISREAD_URL"))
-	writePool = newReadPool(os.Getenv("REDISWRITE_URL"))
+	redisRead := os.Getenv("REDISREAD_URL")
+	redisWrite := os.Getenv("REDISWRITE_URL")
+	if os.Getenv("REDIS_URL") != "" {
+		redisRead = os.Getenv("REDIS_URL")
+		redisWrite = os.Getenv("REDIS_URL")
+	}
+	readPool = newReadPool(redisRead)
+	writePool = newReadPool(redisWrite)
 }
 
 func subscriber(redisChannel string, tick chan string) {
@@ -51,21 +63,35 @@ func subscriber(redisChannel string, tick chan string) {
 	}
 }
 
-func nextJobID(prefix string) int64 {
+func reqByID(id int64) (req PricinigRequest) {
 	c := readPool.Get()
 	defer c.Close()
 
-	jobID, _ := redis.Int64(c.Do("INCR", "work::offer"))
-	for {
-		lastestRequest, _ := redis.Int64(c.Do("GET", "work::request"))
-		if lastestRequest >= jobID {
-			break
-		}
-		time.Sleep(time.Millisecond * 10)
-	}
-	return jobID
+	msg, _ := redis.String(c.Do("GET", "work::"+strconv.FormatInt(id, 10)))
+	json.Unmarshal([]byte(msg), &req)
+	return PricinigRequest{ID: id, Lang: "FR", Params: "test_params", MD5: time.Now().Format("UnixDate"), Trigger: "R_25"}
+	//return req
 }
 
-func publish(req pricinigRequest, msg string) {
+func nextJob(nextJob chan int64) {
+	c := readPool.Get()
+	defer c.Close()
+
+	for {
+		jobID, _ := redis.Int64(c.Do("INCR", "work::provide"))
+		for {
+			lastestRequest, _ := redis.Int64(c.Do("GET", "work::offer"))
+			if lastestRequest >= jobID {
+				nextJob <- jobID
+				break
+			} else {
+				fmt.Println("nextJob not there yet", lastestRequest, jobID)
+				time.Sleep(time.Millisecond * 1000)
+			}
+		}
+	}
+}
+
+func publish(req PricinigRequest, msg string) {
 	fmt.Println(req, msg)
 }

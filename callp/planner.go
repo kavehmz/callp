@@ -1,36 +1,31 @@
 package callp
 
 import (
+	"fmt"
 	"log"
 	"time"
 )
 
-type pricinigRequest struct {
-	lang    string
-	params  string
-	md5     string
-	trigger string
+// PricinigRequest will store the pricing job details
+type PricinigRequest struct {
+	ID      int64  `json:"id"`
+	Lang    string `json:"lang"`
+	Params  string `json:"params"`
+	MD5     string `json:"md5"`
+	Trigger string `json:"trigger"`
 }
 
-func findNextPricingRequest(next chan pricinigRequest) {
-	for {
-		jobID := nextJobID()
-
-		next <- pricinigRequest{lang: "EN", params: "test_params", md5: time.Now().Format("UnixDate"), trigger: "R_25"}
-		time.Sleep(time.Second * 2)
-	}
-}
-
-func streamControl(req pricinigRequest, quit chan bool) {
+func streamControl(req PricinigRequest, quit chan bool) {
 	time.Sleep(time.Second * 10)
 	quit <- true
 }
 
-func streamPrice(worker chan bool, req pricinigRequest, quit chan bool) {
-	write := make(chan string, 2)
-	read := make(chan string, 2)
+func streamPrice(worker chan bool, req PricinigRequest, quit chan bool) {
+	write := make(chan string, 1)
+	read := make(chan string, 1)
+	err := make(chan error, 1)
 	pricerQuit := make(chan bool, 1)
-	go Pricer("./pricer.pl", write, read, pricerQuit)
+	go Pricer(PricingScript, write, read, pricerQuit, err)
 
 	tick := make(chan string)
 	go func() {
@@ -40,20 +35,24 @@ func streamPrice(worker chan bool, req pricinigRequest, quit chan bool) {
 		}
 	}()
 
-	write <- req.lang
-	write <- req.params
+	write <- req.Lang
+	write <- req.Params
 loop:
 	for {
 		select {
 		case <-quit:
 			pricerQuit <- true
 			break loop
+		case e := <-err:
+			log.Println(e)
+			pricerQuit <- true
+			break loop
 		case msg := <-read:
 			publish(req, msg)
 		case signal := <-tick:
 			write <- signal
-		case <-time.After(time.Second * 10):
-			log.Println("No activity for 120 seconds")
+		case <-time.After(time.Duration(PricerInactivityTimeout * TimeoutMultiplier)):
+			log.Println("No activity in price streamer for more than ", time.Duration(PricerInactivityTimeout*TimeoutMultiplier).Seconds(), "second.")
 			break loop
 		}
 	}
@@ -63,22 +62,30 @@ loop:
 
 // Plan will do planning
 func Plan(quit chan bool) {
-	nextReq := make(chan pricinigRequest)
-	go findNextPricingRequest(nextReq)
+
+	c := readPool.Get()
+	defer c.Close()
+	c.Do("FLUSHALL")
+	c.Do("INCR", "work::offer")
+
+	nextJobID := make(chan int64)
+	go nextJob(nextJobID)
 
 	worker := make(chan bool, 60)
+	var workerID int64
 loop:
 	for {
 		select {
-		case req := <-nextReq:
+		case id := <-nextJobID:
+			fmt.Println("Job stared", id)
 			q := make(chan bool)
+			req := reqByID(id)
+			workerID++
+			req.ID = workerID
 			go streamControl(req, q)
 			go streamPrice(worker, req, q)
 			worker <- true
 		case <-quit:
-			break loop
-		case <-time.After(time.Second * 10):
-			log.Println("No activity for 120 seconds")
 			break loop
 		}
 	}
