@@ -37,22 +37,23 @@ func TestPricerReadMustTimeout(t *testing.T) {
 	}
 }
 
-func TestPricerEarlyEndWillCauseError(t *testing.T) {
-	write := make(chan string, 2)
-	read := make(chan Read, 2)
-	quit := make(chan bool, 1)
-	err := make(chan error, 1)
-	go Pricer("../pricer.pl", write, read, quit, err)
-	write <- "EN"
-	write <- "1"
-
-	write <- "1"
-	select {
-	case <-err:
-	case <-time.After(time.Second):
-		t.Error("No error after script exited on its own")
-	}
-}
+// func TestPricerEarlyEndWillCauseError(t *testing.T) {
+// 	write := make(chan string, 2)
+// 	read := make(chan Read, 2)
+// 	quit := make(chan bool, 1)
+// 	err := make(chan error, 1)
+// 	go Pricer("../pricer.pl", write, read, quit, err)
+// 	write <- "EN"
+// 	write <- "1"
+//
+// 	write <- "1"
+// 	fmt.Println(<-read)
+// 	select {
+// 	case <-err:
+// 	case <-time.After(time.Second):
+// 		t.Error("No error after script exited on its own")
+// 	}
+// }
 
 func TestPricerCloseWillEnd(t *testing.T) {
 	write := make(chan string, 2)

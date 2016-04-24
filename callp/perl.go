@@ -46,11 +46,14 @@ func Pricer(cmdPath string, write chan string, read chan Read, quit chan bool, e
 		}
 	}()
 
-	appEnded := make(chan bool)
-	go func() {
-		cmd.Wait()
-		appEnded <- true
-	}()
+	// https://github.com/golang/go/issues/9307
+	// After this bug is fixed in 1.6.x we can wait for script end without race issue.
+	// race check is important enough that I prefer to disable this check for now.
+	// appEnded := make(chan bool)
+	// go func() {
+	// 	cmd.Wait()
+	// 	appEnded <- true
+	// }()
 
 loop:
 	for {
@@ -59,9 +62,9 @@ loop:
 			readTimeout.Reset(time.Duration(PricerReadTimeout * TimeoutMultiplier))
 			t = time.Now()
 			in.Write([]byte(msg + "\n"))
-		case <-appEnded:
-			err <- errors.New("App ended")
-			break loop
+		// case <-appEnded:
+		// 	err <- errors.New("App ended")
+		// 	break loop
 		case <-quit:
 			in.Close()
 			break loop

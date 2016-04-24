@@ -27,7 +27,6 @@ while (<STDIN>) {
     print price($lang,$params,$signal),"\n";
     $c++;
     last if ($c==$max);
-    die "test"
 }
 
 srand;
