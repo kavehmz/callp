@@ -92,3 +92,63 @@ func TestPricerNormalPricingWithDuration(t *testing.T) {
 		t.Error("Read did not reply")
 	}
 }
+
+func ExamplePricer() {
+	write := make(chan string, 2)
+	read := make(chan Read, 2)
+	quit := make(chan bool, 1)
+	err := make(chan error, 1)
+	go Pricer("../pricer.pl", write, read, quit, err)
+
+	write <- "FR"
+	write <- "Details"
+	write <- "1"
+	<-read
+	write <- "2"
+	<-read
+	quit <- true
+}
+
+func BenchmarkPricerReadWrite(b *testing.B) {
+	write := make(chan string, 2)
+	read := make(chan Read, 2)
+	quit := make(chan bool, 1)
+	err := make(chan error, 1)
+	go Pricer("../pricer.pl", write, read, quit, err)
+
+	write <- "FR"
+	write <- "Details"
+
+	for i := 0; i < b.N; i++ {
+		write <- "1"
+		<-read
+	}
+	quit <- true
+}
+
+func BenchmarkLunch(b *testing.B) {
+	write := make(chan string, 2)
+	read := make(chan Read, 2)
+	quit := make(chan bool, 1)
+	err := make(chan error, 1)
+	go Pricer("../pricer.pl", write, read, quit, err)
+
+	write <- "FR"
+	write <- "Details"
+
+	for i := 0; i < b.N; i++ {
+		write := make(chan string, 2)
+		read := make(chan Read, 2)
+		quit := make(chan bool, 1)
+		err := make(chan error, 1)
+		go Pricer("../pricer.pl", write, read, quit, err)
+
+		write <- "FR"
+		write <- "Details"
+		for j := 0; j < 1000; j++ {
+			write <- "1"
+			<-read
+		}
+		quit <- true
+	}
+}

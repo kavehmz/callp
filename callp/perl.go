@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -35,7 +36,7 @@ func Pricer(cmdPath string, write chan string, read chan Read, quit chan bool, e
 		for running {
 			data, _ := buf.ReadString('\n')
 			readTimeout.Stop()
-			read <- Read{data: data, duration: time.Now().Sub(t)}
+			read <- Read{data: strings.TrimRight(data, "\n"), duration: time.Now().Sub(t)}
 		}
 	}()
 

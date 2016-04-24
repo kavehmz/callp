@@ -18,7 +18,7 @@ my $params = <STDIN>;
 chomp $params;
 
 my $c=0;
-my $max=($params>0)? $params: 10;
+my $max=($params>0)? $params: 0;
 while (<STDIN>) {
     my $signal = $_;
     chomp $signal;
