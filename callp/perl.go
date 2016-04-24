@@ -37,9 +37,9 @@ func Pricer(cmdPath string, write, read chan string, close chan bool, err chan e
 
 	appEnded := make(chan bool)
 	go func() {
-		e := cmd.Wait()
-		if e != nil {
-			err <- e
+		cmd.Wait()
+		if running {
+			err <- errors.New("App ended without signal from pricer")
 		}
 		appEnded <- true
 	}()
