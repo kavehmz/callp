@@ -50,7 +50,7 @@ func TestPricerEarlyEndWillCauseError(t *testing.T) {
 	select {
 	case <-err:
 	case <-time.After(time.Second):
-		t.Error("No error after script exited by its own")
+		t.Error("No error after script exited on its own")
 	}
 }
 

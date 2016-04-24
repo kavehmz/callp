@@ -30,22 +30,26 @@ func Pricer(cmdPath string, write chan string, read chan Read, quit chan bool, e
 
 	readTimeout := time.NewTimer(time.Duration(0))
 	readTimeout.Stop()
-	running := true
 	var t time.Time
+	quitReading := make(chan bool)
 	go func() {
-		for running {
-			data, _ := buf.ReadString('\n')
-			readTimeout.Stop()
-			read <- Read{data: strings.TrimRight(data, "\n"), duration: time.Now().Sub(t)}
+	loop:
+		for {
+			select {
+			case <-quitReading:
+				break loop
+			default:
+				data, _ := buf.ReadString('\n')
+				readTimeout.Stop()
+				read <- Read{data: strings.TrimRight(data, "\n"), duration: time.Now().Sub(t)}
+			}
 		}
 	}()
 
 	appEnded := make(chan bool)
 	go func() {
 		cmd.Wait()
-		if running {
-			appEnded <- true
-		}
+		appEnded <- true
 	}()
 
 loop:
@@ -56,17 +60,13 @@ loop:
 			t = time.Now()
 			in.Write([]byte(msg + "\n"))
 		case <-appEnded:
-			err <- errors.New("App ended without signal")
-			running = false
-			in.Close()
+			err <- errors.New("App ended")
 			break loop
 		case <-quit:
-			running = false
 			in.Close()
 			break loop
 		case <-readTimeout.C:
 			err <- errors.New("Read timeout")
-			running = false
 			in.Close()
 			break loop
 		}
