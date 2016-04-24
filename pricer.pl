@@ -1,5 +1,6 @@
 #! /usr/bin/perl
  use Time::HiRes;
+ use strict;
 {
     my $ofh = select STDOUT;
 	$| = 1;
@@ -17,15 +18,15 @@ my $params = <STDIN>;
 chomp $params;
 
 my $c=0;
-my $max=($params>0)? $param: 10;
+my $max=($params>0)? $params: 10;
 while (<STDIN>) {
     my $signal = $_;
     chomp $signal;
     #Using $signal as a number to sleep for testing purposes.
     Time::HiRes::usleep($signal);
     print price($lang,$params,$signal),"\n";
-    break if ($c==$max);
     $c++;
+    last if ($c==$max);
 }
 
 srand;
