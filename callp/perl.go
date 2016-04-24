@@ -67,10 +67,12 @@ loop:
 		// 	break loop
 		case <-quit:
 			in.Close()
+			quitReading <- true
 			break loop
 		case <-readTimeout.C:
 			err <- errors.New("Read timeout")
 			in.Close()
+			quitReading <- true
 			break loop
 		}
 	}

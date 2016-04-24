@@ -46,21 +46,24 @@ func init() {
 	writePool = newReadPool(redisWrite)
 }
 
-func subscriber(redisChannel string, tick chan string) {
+func subscribe(redisChannel string, tick chan string) redis.PubSubConn {
 	c := readPool.Get()
-	defer c.Close()
 
 	psc := redis.PubSubConn{Conn: c}
 	psc.Subscribe(redisChannel)
-	for {
-		switch v := psc.Receive().(type) {
-		case redis.Message:
-			tick <- string(v.Data)
-		case error:
-			log.Println("Subscriber fail in the middle of listening")
-			return
+	go func() {
+	loop:
+		for {
+			switch v := psc.Receive().(type) {
+			case redis.Message:
+				tick <- string(v.Data)
+			case error:
+				break loop
+			}
 		}
-	}
+		close(tick)
+	}()
+	return psc
 }
 
 func reqByID(id int64) (req PricinigRequest) {
