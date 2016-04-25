@@ -87,3 +87,18 @@ func TestNextJob(t *testing.T) {
 	}
 	quit <- true
 }
+
+func TestWorkStillValid(t *testing.T) {
+	c := readPool.Get()
+	defer c.Close()
+	c.Do("SET", "work::1", "Test")
+	c.Do("EXPIRE", "work::1", "2")
+	if !workStillValid(1) {
+		t.Error("Work was invalid")
+	}
+
+	c.Do("EXPIRE", "work::1", "0")
+	if workStillValid(1) {
+		t.Error("TTL 0 is still returning valid")
+	}
+}

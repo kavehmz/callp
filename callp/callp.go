@@ -37,3 +37,6 @@ var WaitIfNoJob = 100
 // Second input is pricing parameters
 // Every other STDIN input is a signal to generate the next price.
 var PricingScript = "./pricer.pl"
+
+// MaxConcurrentWorkers set maximum number of concurrent workers
+var MaxConcurrentWorkers = 60

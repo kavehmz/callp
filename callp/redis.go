@@ -2,6 +2,7 @@ package callp
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -44,6 +45,7 @@ func subscribe(redisChannel string, tick chan string) redis.PubSubConn {
 	c := readPool.Get()
 
 	psc := redis.PubSubConn{Conn: c}
+	fmt.Println(redisChannel)
 	psc.Subscribe(redisChannel)
 	go func() {
 	loop:
@@ -60,11 +62,22 @@ func subscribe(redisChannel string, tick chan string) redis.PubSubConn {
 	return psc
 }
 
+func workStillValid(id int64) bool {
+	c := readPool.Get()
+	defer c.Close()
+	ttl, _ := redis.Int64(c.Do("TTL", "work::"+strconv.FormatInt(id, 10)))
+	if ttl > 0 {
+		return true
+	}
+	return false
+}
+
 func reqByID(id int64) (req PricinigRequest) {
 	c := readPool.Get()
 	defer c.Close()
 	msg, _ := redis.String(c.Do("GET", "work::"+strconv.FormatInt(id, 10)))
 	json.Unmarshal([]byte(msg), &req)
+	req.ID = id
 	return req
 }
 

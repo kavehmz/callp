@@ -5,82 +5,84 @@ import (
 	"time"
 )
 
-// PricinigRequest will store the pricing job details
+// PricinigRequest will store the pricing details set by job creators.
 type PricinigRequest struct {
-	ID      int64  `json:"id"`
-	Lang    string `json:"lang"`
-	Params  string `json:"params"`
-	MD5     string `json:"md5"`
+	// Unique job id
+	ID int64 `json:"id"`
+	// Languge used in messages send by pricer.
+	Lang string `json:"lang"`
+	// Params will store pricing details. Perl script must be able to deserealize this.
+	Params string `json:"params"`
+	// MD5 is unique idenfitfier of pricing. This will be used to avoid having to worker generating the same price.
+	MD5 string `json:"md5"`
+	// Trigger is a redis channel that will trigger the next pricing.
 	Trigger string `json:"trigger"`
 }
 
-func streamControl(req PricinigRequest, quit chan bool) {
-	time.Sleep(time.Second * 10)
-	quit <- true
-}
-
-func streamPrice(worker chan bool, req PricinigRequest, quit chan bool) {
+func streamPrice(worker chan bool, req PricinigRequest) {
 	write := make(chan string, 1)
 	read := make(chan Read, 1)
 	err := make(chan error, 1)
-	pricerQuit := make(chan bool, 1)
-	go Pricer(PricingScript, write, read, pricerQuit, err)
+	quit := make(chan bool, 1)
+	go Pricer(PricingScript, write, read, quit, err)
 
 	publisherQuit := make(chan bool, 1)
 	go publish(req.Trigger, read, publisherQuit)
 
 	tick := make(chan string)
-	go func() {
-		for {
-			tick <- "ok"
-			time.Sleep(time.Second)
-		}
-	}()
+	psc := subscribe(req.Trigger, tick)
 
 	write <- req.Lang
 	write <- req.Params
 loop:
 	for {
 		select {
-		case <-quit:
-			pricerQuit <- true
-			publisherQuit <- true
-			break loop
 		case e := <-err:
 			log.Println(e)
-			pricerQuit <- true
+			quit <- true
+			publisherQuit <- true
 			break loop
 		case signal := <-tick:
 			write <- signal
+			if !workStillValid(req.ID) {
+				quit <- true
+				publisherQuit <- true
+				break loop
+			}
 		case <-time.After(time.Duration(PricerInactivityTimeout * TimeoutMultiplier)):
 			log.Println("No activity in price streamer for more than ", time.Duration(PricerInactivityTimeout*TimeoutMultiplier).Seconds(), "second.")
+			quit <- true
+			publisherQuit <- true
 			break loop
 		}
 	}
-
+	go psc.Close()
 	<-worker
 }
 
+type streamer struct {
+	req    PricinigRequest
+	worker chan bool
+	write  chan string
+	read   chan Read
+	err    chan error
+	quit   chan bool
+}
+
 // Plan will do planning
-func Plan(quit chan bool) {
+func Plan(quit chan bool, job chan int64) {
+	next := make(chan PricinigRequest)
+	quitNext := make(chan bool)
+	go nextJob(next, quitNext)
 
-	c := readPool.Get()
-	defer c.Close()
-	c.Do("FLUSHALL")
-	c.Do("INCR", "work::offer")
-
-	nextJobID := make(chan PricinigRequest)
-	quitNextJob := make(chan bool)
-	go nextJob(nextJobID, quitNextJob)
-
-	worker := make(chan bool, 60)
+	worker := make(chan bool, MaxConcurrentWorkers)
 loop:
 	for {
 		select {
-		case req := <-nextJobID:
-			q := make(chan bool)
-			go streamControl(req, q)
-			go streamPrice(worker, req, q)
+		case req := <-next:
+			// s := streamer{req: req, worker: worker, write: make(chan string, 1), read: make(chan Read, 1), err: make(chan error, 1), quit: make(chan bool, 1)}
+			go streamPrice(worker, req)
+			job <- req.ID
 			worker <- true
 		case <-quit:
 			break loop
