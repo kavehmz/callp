@@ -2,7 +2,6 @@ package callp
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -64,32 +63,46 @@ func subscribe(redisChannel string, tick chan string) redis.PubSubConn {
 func reqByID(id int64) (req PricinigRequest) {
 	c := readPool.Get()
 	defer c.Close()
-
 	msg, _ := redis.String(c.Do("GET", "work::"+strconv.FormatInt(id, 10)))
 	json.Unmarshal([]byte(msg), &req)
-	return PricinigRequest{ID: id, Lang: "FR", Params: "test_params", MD5: time.Now().Format("UnixDate"), Trigger: "R_25"}
-	//return req
+	return req
 }
 
-func nextJob(nextJob chan int64) {
+func nextJob(nextJob chan PricinigRequest, quit chan bool) {
 	c := readPool.Get()
 	defer c.Close()
-
+loop:
 	for {
 		jobID, _ := redis.Int64(c.Do("INCR", "work::provide"))
 		for {
+			select {
+			case <-quit:
+				break loop
+			default:
+				break
+			}
 			lastestRequest, _ := redis.Int64(c.Do("GET", "work::offer"))
 			if lastestRequest >= jobID {
-				nextJob <- jobID
+				nextJob <- reqByID(jobID)
 				break
 			} else {
-				fmt.Println("nextJob not there yet", lastestRequest, jobID)
-				time.Sleep(time.Millisecond * 1000)
+				time.Sleep(time.Duration(TimeoutMultiplier * WaitIfNoJob))
 			}
 		}
 	}
 }
 
-func publish(req PricinigRequest, msg Read) {
-	fmt.Println(req, msg)
+func publish(redisChannel string, pub chan Read, quit chan bool) {
+	c := readPool.Get()
+
+loop:
+	for {
+		select {
+		case t := <-pub:
+			c.Do("PUBLISH", redisChannel, t.data)
+		case <-quit:
+			break loop
+		}
+	}
+	go c.Close()
 }

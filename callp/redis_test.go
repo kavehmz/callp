@@ -20,11 +20,15 @@ func TestNewPool(t *testing.T) {
 	c = p.Get()
 }
 
-func TestSubscribe(t *testing.T) {
+func TestPublishSubscribe(t *testing.T) {
 	tick := make(chan string)
 	psc := subscribe("feed::frxUSDJPY", tick)
-	tc := readPool.Get()
-	tc.Do("PUBLISH", "feed::frxUSDJPY", "test")
+
+	quit := make(chan bool, 1)
+	read := make(chan Read)
+	go publish("feed::frxUSDJPY", read, quit)
+	read <- Read{data: "test"}
+	quit <- true
 
 	select {
 	case data := <-tick:
@@ -42,4 +46,44 @@ func TestSubscribe(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Error("Connection still open")
 	}
+}
+
+func TestNextJob(t *testing.T) {
+	c := readPool.Get()
+	defer c.Close()
+	c.Do("SET", "work::provide", "0")
+	c.Do("SET", "work::offer", "2")
+
+	c.Do("SET", "work::1", `{"id": 1, "lang": "FR", "params": "test_params", "md5": "abcdefghijhklmnopqrstuvwxyz", "trigger": "R_25"}`)
+	c.Do("SET", "work::2", `{"id": 2, "lang": "EN", "params": "test_params", "md5": "abcdefghijhklmnopqrstuvwxyz", "trigger": "R_25"}`)
+
+	next := make(chan PricinigRequest)
+	quit := make(chan bool)
+	go nextJob(next, quit)
+
+	select {
+	case req := <-next:
+		if req.ID != 1 {
+			t.Error("Wrong job number")
+		}
+	case <-time.After(time.Second):
+		t.Error("No job found")
+	}
+
+	select {
+	case req := <-next:
+		if req.ID != 2 {
+			t.Error("Wrong job number")
+		}
+	case <-time.After(time.Second):
+		t.Error("No job found")
+	}
+
+	select {
+	case <-next:
+		t.Error("There was a next job without any job provider!")
+	case <-time.After(time.Duration(TimeoutMultiplier * WaitIfNoJob)):
+		break
+	}
+	quit <- true
 }

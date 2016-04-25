@@ -28,6 +28,9 @@ var PricerReadTimeout = 1000
 // TimeoutMultiplier is used to multiply custom timeouts. if TUnit is 1,000,000,  PricerInactivityTimeout and PricerReadTimeout will be in millisecond.
 var TimeoutMultiplier = 1000000
 
+// WaitIfNoJob set the sleep in the loop which waits for next job to be ready.
+var WaitIfNoJob = 100
+
 // PricingScript sets path to pricing script.
 // This script should communicate by STDIN and STDOUT in an infinite loop until STDIN gets closed from outside.
 // First input will be language.

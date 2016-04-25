@@ -1,7 +1,6 @@
 package callp
 
 import (
-	"fmt"
 	"log"
 	"time"
 )
@@ -27,6 +26,9 @@ func streamPrice(worker chan bool, req PricinigRequest, quit chan bool) {
 	pricerQuit := make(chan bool, 1)
 	go Pricer(PricingScript, write, read, pricerQuit, err)
 
+	publisherQuit := make(chan bool, 1)
+	go publish(req.Trigger, read, publisherQuit)
+
 	tick := make(chan string)
 	go func() {
 		for {
@@ -42,13 +44,12 @@ loop:
 		select {
 		case <-quit:
 			pricerQuit <- true
+			publisherQuit <- true
 			break loop
 		case e := <-err:
 			log.Println(e)
 			pricerQuit <- true
 			break loop
-		case msg := <-read:
-			publish(req, msg)
 		case signal := <-tick:
 			write <- signal
 		case <-time.After(time.Duration(PricerInactivityTimeout * TimeoutMultiplier)):
@@ -68,20 +69,16 @@ func Plan(quit chan bool) {
 	c.Do("FLUSHALL")
 	c.Do("INCR", "work::offer")
 
-	nextJobID := make(chan int64)
-	go nextJob(nextJobID)
+	nextJobID := make(chan PricinigRequest)
+	quitNextJob := make(chan bool)
+	go nextJob(nextJobID, quitNextJob)
 
 	worker := make(chan bool, 60)
-	var workerID int64
 loop:
 	for {
 		select {
-		case id := <-nextJobID:
-			fmt.Println("Job stared", id)
+		case req := <-nextJobID:
 			q := make(chan bool)
-			req := reqByID(id)
-			workerID++
-			req.ID = workerID
 			go streamControl(req, q)
 			go streamPrice(worker, req, q)
 			worker <- true
