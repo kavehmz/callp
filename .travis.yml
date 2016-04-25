@@ -11,6 +11,6 @@ before_install:
   - rm -f main.go
 
 script:
-    - go test -v -covermode=count -coverprofile=coverage.out -benchmem -bench .
-    - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+    - cd callp;go test -v -covermode=count -coverprofile=coverage.out -benchmem -bench .
+    - cd callp;$HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
     - go version
