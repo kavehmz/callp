@@ -64,7 +64,7 @@ func TestStreamPriceTick(t *testing.T) {
 	worker <- true
 	PricingScript = "../pricer.pl"
 	tmp := PricerInactivityTimeout
-	PricerInactivityTimeout = 100
+	PricerInactivityTimeout = 1000
 	go streamPrice(worker, job, req)
 	c := readPool.Get()
 	defer c.Close()
