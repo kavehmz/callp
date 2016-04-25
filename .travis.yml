@@ -1,10 +1,8 @@
 language: go
 go:
   - 1.6
-  - tip
 env:
-  - secure: "Zvu9el8oSuqHuhtj2+hNwym70/co1VAWju7rn6042usrPxdAdNvhNTyy/h9NYfu4LgpGSJ8KmFsQPyLr+vgkcmRpmafzNSIfsK4e+6qfdHFPuxVhjhhl5KN8OITYecgQN8zwRvYNLg3r0kep17Whi4T6m2NIVLobwT/fzmyvYCbVCGb+r35DJHvJPlByuKr/speGYkKRiG2zSmmcWeACdrwqcsbk9mK26RY63g3tiL0TrJTENzkTagUUc2rVgxRGYyICqeRtKr1xFFcNc5XBxRl22dRIdMTQkjXr/DxLhfV/2x7D3MZKmdI1azTYW0fGJ1nMPhzj+XL78A1J0Uf4hENT20slOqfSGozHQHQsLSvcKSwYwdNLB1DqrqJOMlsf8mKZRY0EvN6K3a0ATfkvXGPGw+QKskNUv2hYYrNT6RJCTnQu9qfGOkA/k3NvRThC1mt/xMlL2lAw5GnUA5SyeF0S+P472rhTVVSzju5r7ELQB/DRzWC9aHLdQTAWUTnDx0yjHJ6hGoayMe7zjH3CnjFj79+sT1WRjfBKuKXKq4KL0oIB9i2Tq00VwBpyC0Xn61yMmlfRaL5l8jBWxOCBOwBnqif9kbZLoyU6+q7U7nxlqJkBpbG05Yflxg6L8DGK3BAJeL+RgkM8XHZblT2ADcaY2NJsDjHb9RguudRNh1I="
-  - REDIS_URL='redis://127.0.0.1:6379/0'
+  - secure: "tfC9EHTTt1qsowjixcq/zEqHf76ex4fp3MlejRMqwgETrSlzFV62p0bbQbWJvzBbIFZ1H+0jUtqVzb8kxOlDaTRygWsYWEF9wyJj/ahIj/C18QGOUjlj6j3MJ8XukIuy0cJwO2iMQLsy2CT6IojAx7DVIXc3mA/9e3E+qkYZFubSeaU0h9p9Wz5YNMI4uJXll6mBHWZwIYLyYgqZJxmkqtWlm9PEx2n7FabS9ZiH9OLMruoErDU7b4wJNaC4hWJ5uBY2FbZWI3YSclZ/a+Ml9XtG6eCMqc+PrKhk0iHNJmyBvYbJLLhg1TdJl8MBLcvjVRb5gN4JkSDf/Xp1Rx1EVKZ3xJwipV759wGpAJxRAHQUk8IPVlfhJOjI1yId3TwIUHEpwx+686fvcwteiZSXLoO+JXtEy6Izs4tCx9UekYgFBfm3jZTXpgGaKuxygjH5/mdX/hTCbPH9tJMM3VdYduvFttyhkYzqQnQ7WGvjdfh+HPE/pJzAtQw6v2QP/dQ0ALxXxClmTWXOfp7sKP2DGv8/ax/++DcpCOvjLAPlVXdqCjWR5fvYJDPOc+eu5V7F5RjTXdMaH97KJdDAVRkSPcdUu3WfZ3YrNaQWCQB6004a8k3UkTEwQKXJTVzuhE6njZ+5u0I7AxhBgr14YwP9/Q7/C97UZTye/FxFhaA2uRM="
 services:
   - redis-server
 before_install:
@@ -14,6 +12,5 @@ before_install:
   - rm -f main.go
 
 script:
-    - cd callp;go test -v -covermode=count -coverprofile=coverage.out -benchmem -bench .
-    - cd callp;$HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
-    - go version
+    - cd callp;REDIS_URL='redis://127.0.0.1:6379/0' go test -v -covermode=count -coverprofile=coverage.out -benchmem -bench .
+    - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
