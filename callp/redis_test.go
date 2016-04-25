@@ -33,7 +33,7 @@ func TestPublishSubscribe(t *testing.T) {
 	select {
 	case data := <-tick:
 		if data != "test" {
-			t.Error("Message incorrect")
+			t.Error("Message incorrect", data)
 		}
 	case <-time.After(time.Second):
 		t.Error("No message received")

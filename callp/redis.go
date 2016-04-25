@@ -2,7 +2,6 @@ package callp
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -45,7 +44,6 @@ func subscribe(redisChannel string, tick chan string) redis.PubSubConn {
 	c := readPool.Get()
 
 	psc := redis.PubSubConn{Conn: c}
-	fmt.Println(redisChannel)
 	psc.Subscribe(redisChannel)
 	go func() {
 	loop:
