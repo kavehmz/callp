@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const done = 0
+
 // PricinigRequest will store the pricing details set by job creators.
 type PricinigRequest struct {
 	// Unique job id
@@ -19,8 +21,8 @@ type PricinigRequest struct {
 	Trigger string `json:"trigger"`
 }
 
-func streamPrice(worker chan bool, req PricinigRequest) {
-	write := make(chan string, 1)
+func streamPrice(worker chan bool, job chan int64, req PricinigRequest) {
+	write := make(chan string, 3)
 	read := make(chan Read, 1)
 	err := make(chan error, 1)
 	quit := make(chan bool, 1)
@@ -58,18 +60,10 @@ loop:
 	}
 	go psc.Close()
 	<-worker
+	job <- done
 }
 
-type streamer struct {
-	req    PricinigRequest
-	worker chan bool
-	write  chan string
-	read   chan Read
-	err    chan error
-	quit   chan bool
-}
-
-// Plan will do planning
+// Plan select the next job, send it to a price streamer and notify that job has started
 func Plan(quit chan bool, job chan int64) {
 	next := make(chan PricinigRequest)
 	quitNext := make(chan bool)
@@ -80,8 +74,7 @@ loop:
 	for {
 		select {
 		case req := <-next:
-			// s := streamer{req: req, worker: worker, write: make(chan string, 1), read: make(chan Read, 1), err: make(chan error, 1), quit: make(chan bool, 1)}
-			go streamPrice(worker, req)
+			go streamPrice(worker, job, req)
 			job <- req.ID
 			worker <- true
 		case <-quit:
