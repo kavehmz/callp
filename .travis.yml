@@ -8,6 +8,7 @@ before_install:
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
   - go get github.com/garyburd/redigo/redis
+  - rm -f main.go
 
 script:
     - go test -v -covermode=count -coverprofile=coverage.out -benchmem -bench .
